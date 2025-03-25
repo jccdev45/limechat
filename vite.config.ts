@@ -33,5 +33,6 @@ export default defineConfig(async () => ({
       // 3. tell vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
+    allowedHosts: ["07b1-108-21-151-241.ngrok-free.app"]
   },
 }));

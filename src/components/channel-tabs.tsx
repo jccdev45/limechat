@@ -22,16 +22,27 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { activeChannelAtom, channelsAtom } from '@/state';
-import { useAtom } from 'jotai';
+import { handleTwitchLogin } from '@/lib/auth-handler';
+import { activeChannelAtom, channelsAtom, credentialsAtom } from '@/state';
+import { useAtom, useAtomValue } from 'jotai';
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 
 export function ChannelTabs() {
+  const credentials = useAtomValue(credentialsAtom);
+  console.log("🚀 ~ ChannelTabs ~ credentials:", credentials)
   const [channels, setChannels] = useAtom(channelsAtom);
   const [activeChannel, setActiveChannel] = useAtom(activeChannelAtom);
   const [newChannelName, setNewChannelName] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleLogin = async () => {
+    try {
+      await handleTwitchLogin();
+    } catch (error) {
+      console.error('Error during Twitch login:', error);
+    }
+  };
 
   const handleAddChannel = () => {
     if (newChannelName.trim()) {
@@ -115,6 +126,9 @@ export function ChannelTabs() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {!credentials && (
+        <Button onClick={handleLogin}>Login with Twitch</Button>
+      )}
     </div>
   );
 }
