@@ -1,4 +1,4 @@
-import { useTwitchClient } from "@/hooks/use-twitch-client";
+import { useTwitchMessages } from "@/hooks/use-messages";
 import { Channel } from "@/state";
 import { useMemo } from "react";
 
@@ -12,7 +12,7 @@ const normalizeChannelName = (channel: string) => {
 };
 
 export function ChannelContent({ channel }: ChannelContentProps) {
-  const { messages } = useTwitchClient();
+  const { messages } = useTwitchMessages(channel.name);
 
   const channelMessages = useMemo(() => {
     const normalizedChannel = normalizeChannelName(channel.name);
