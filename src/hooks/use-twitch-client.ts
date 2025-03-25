@@ -1,6 +1,6 @@
 // use-twitch-connection.ts
 import { useAtomValue, useSetAtom } from "jotai";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 import { Client } from "tmi.js";
 import {
   channelsAtom,
@@ -11,99 +11,70 @@ import {
 
 let twitchClient: Client | null = null;
 
+const connectClient = async (
+  channels: string[],
+  credentials: { username: string; token: string } | null,
+  setIsConnected: (connected: boolean) => void,
+  setError: (error: string | null) => void
+) => {
+  if (twitchClient && twitchClient.readyState() === "OPEN") return;
+
+  if (!twitchClient) {
+    twitchClient = new Client({
+      channels: channels.map((c) => c.toLowerCase()),
+      identity: credentials ? {
+        username: credentials.username,
+        password: `oauth:${credentials.token}`,
+      } : undefined,
+      connection: {
+        reconnect: true,
+        maxReconnectAttempts: 3,
+      },
+      options: { debug: true },
+    });
+
+    twitchClient.on('connected', () => {
+      setIsConnected(true);
+      setError(null);
+    });
+
+    twitchClient.on('disconnected', (reason) => {
+      setIsConnected(false);
+      if (!reason.includes('closed')) {
+        setError(`Disconnected: ${reason}`);
+      }
+    });
+  }
+
+  try {
+    await twitchClient.connect();
+  } catch (error) {
+    setError(error instanceof Error ? error.message : "Connection failed");
+    twitchClient = null;
+  }
+};
+
 export const useTwitchClient = () => {
   const channels = useAtomValue(channelsAtom);
   const credentials = useAtomValue(credentialsAtom);
   const setIsConnected = useSetAtom(isConnectedAtom);
   const setError = useSetAtom(errorAtom);
-  const reconnectTimer = useRef<NodeJS.Timeout | null>(null);
-  const isConnecting = useRef(false);
-
-  const disconnectClient = useCallback(async () => {
-    if (twitchClient) {
-      try {
-        await twitchClient.disconnect();
-      } catch (error) {
-        console.debug("Disconnection error:", error);
-      }
-      twitchClient = null;
-      setIsConnected(false);
-      isConnecting.current = false;
-    }
-    if (reconnectTimer.current) {
-      clearTimeout(reconnectTimer.current);
-      reconnectTimer.current = null;
-    }
-  }, [setIsConnected]);
 
   useEffect(() => {
-    const connectClient = async () => {
-      if (
-        isConnecting.current ||
-        (twitchClient && twitchClient.readyState() === "OPEN")
-      ) {
-        return;
-      }
-
-      isConnecting.current = true;
-
-      await disconnectClient();
-
-      if (channels.length === 0) {
-        isConnecting.current = false;
-        return;
-      }
-
-      if (!twitchClient) {
-        twitchClient = new Client({
-          channels: channels.map((c) => c.name.toLowerCase()),
-          identity: credentials
-            ? {
-                username: credentials.username,
-                password: `oauth:${credentials.token}`,
-              }
-            : undefined,
-          connection: {
-            reconnect: true,
-            maxReconnectAttempts: 3,
-          },
-          options: { debug: true },
-        });
-
-        twitchClient.on("connected", () => {
-          setIsConnected(true);
-          setError(null);
-          isConnecting.current = false;
-        });
-
-        twitchClient.on("disconnected", (reason) => {
-          setIsConnected(false);
-          isConnecting.current = false;
-          if (!reason.includes("closed")) {
-            setError(`Disconnected: ${reason}`);
-            reconnectTimer.current = setTimeout(connectClient, 5000);
-          }
-        });
-      }
-
-      try {
-        await twitchClient.connect();
-      } catch (error) {
-        setError(error instanceof Error ? error.message : "Connection failed");
-        twitchClient = null;
-        isConnecting.current = false;
-        reconnectTimer.current = setTimeout(connectClient, 5000);
-      }
-    };
-
-    connectClient();
+    if (channels.length > 0 && !twitchClient) {
+      connectClient(channels.map((c) => c.name), credentials, setIsConnected, setError);
+    }
 
     return () => {
-      if (twitchClient) {
-        disconnectClient();
+      // Only disconnect on explicit unmount
+      if (process.env.NODE_ENV === 'production' || !twitchClient) {
+        if (twitchClient) {
+          twitchClient.disconnect();
+          twitchClient = null;
+        }
       }
     };
-  }, [channels, credentials, disconnectClient, setError, setIsConnected]);
+  }, [channels, credentials, setIsConnected, setError]);
 
   const sendMessage = useCallback(
     async (channel: string, message: string) => {
