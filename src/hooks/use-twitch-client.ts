@@ -6,7 +6,7 @@ import {
   messagesAtom,
 } from "@/state";
 import { useAtomValue, useSetAtom } from "jotai";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { ChatUserstate, Client } from "tmi.js";
 
 export const useTwitchClient = () => {
@@ -17,27 +17,34 @@ export const useTwitchClient = () => {
   const setError = useSetAtom(errorAtom);
   const clientRef = useRef<Client | null>(null);
   const reconnectTimer = useRef<NodeJS.Timeout | null>(null);
+  const isConnecting = useRef(false);
 
-  // Create stable connection key
-  const connectionKey = useMemo(() => {
-    const channelKey = channels
-      .map((c) => c.name.toLowerCase())
-      .sort()
-      .join(',');
-    const credKey = credentials ? `${credentials.username}:${credentials.token}` : 'anon';
-    return `${channelKey}|${credKey}`;
-  }, [channels, credentials]);
+  const handleMessage = useCallback(
+    (channel: string, tags: ChatUserstate, message: string, self: boolean) => {
+      const normalizedChannel = channel.replace(/^#/, "");
+      setMessages((prev) => [
+        ...prev,
+        {
+          channel: normalizedChannel,
+          tags,
+          message,
+          self,
+        },
+      ]);
+    },
+    [setMessages]
+  );
 
-  // Handle proper disconnection
   const disconnectClient = useCallback(async () => {
     if (clientRef.current) {
       try {
         await clientRef.current.disconnect();
       } catch (error) {
-        console.debug('Disconnection error:', error);
+        console.debug("Disconnection error:", error);
       }
       clientRef.current = null;
       setIsConnected(false);
+      isConnecting.current = false;
     }
     if (reconnectTimer.current) {
       clearTimeout(reconnectTimer.current);
@@ -47,9 +54,21 @@ export const useTwitchClient = () => {
 
   useEffect(() => {
     const connectClient = async () => {
+      if (
+        isConnecting.current ||
+        (clientRef.current && clientRef.current.readyState() === "OPEN")
+      ) {
+        return;
+      }
+
+      isConnecting.current = true;
+
       await disconnectClient();
 
-      if (channels.length === 0) return;
+      if (channels.length === 0) {
+        isConnecting.current = false;
+        return;
+      }
 
       const client = new Client({
         channels: channels.map((c) => c.name.toLowerCase()),
@@ -63,39 +82,35 @@ export const useTwitchClient = () => {
           reconnect: true,
           maxReconnectAttempts: 3,
         },
-        options: { debug: true }
+        options: { debug: true },
       });
 
-      const handleMessage = (
-        channel: string,
-        tags: ChatUserstate,
-        message: string,
-        self: boolean
-      ) => {
-        setMessages((prev) => [...prev, { channel, tags, message, self }]);
-      };
-
-      client.on('connected', () => {
-        setIsConnected(true);
-        setError(null);
-      });
-
-      client.on('message', handleMessage);
-
-      client.on('disconnected', (reason) => {
-        setIsConnected(false);
-        if (!reason.includes('closed')) {
-          setError(`Disconnected: ${reason}`);
-          reconnectTimer.current = setTimeout(connectClient, 5000);
-        }
-      });
+      client.on("connected", onConnected);
+      client.on("message", handleMessage);
+      client.on("disconnected", onDisconnected);
 
       try {
         await client.connect();
         clientRef.current = client;
       } catch (error) {
-        setError(error instanceof Error ? error.message : 'Connection failed');
+        setError(error instanceof Error ? error.message : "Connection failed");
         clientRef.current = null;
+        isConnecting.current = false;
+        reconnectTimer.current = setTimeout(connectClient, 5000);
+      }
+    };
+
+    const onConnected = () => {
+      setIsConnected(true);
+      setError(null);
+      isConnecting.current = false;
+    };
+
+    const onDisconnected = (reason: string) => {
+      setIsConnected(false);
+      isConnecting.current = false;
+      if (!reason.includes("closed")) {
+        setError(`Disconnected: ${reason}`);
         reconnectTimer.current = setTimeout(connectClient, 5000);
       }
     };
@@ -103,9 +118,21 @@ export const useTwitchClient = () => {
     connectClient();
 
     return () => {
+      if (clientRef.current) {
+        clientRef.current.removeListener("connected", onConnected);
+        clientRef.current.removeListener("message", handleMessage);
+        clientRef.current.removeListener("disconnected", onDisconnected);
+      }
       disconnectClient();
     };
-  }, [connectionKey, disconnectClient, setMessages, setIsConnected, setError]);
+  }, [
+    channels,
+    credentials,
+    disconnectClient,
+    handleMessage,
+    setError,
+    setIsConnected,
+  ]);
 
   const sendMessage = useCallback(
     async (channel: string, message: string) => {
@@ -113,7 +140,9 @@ export const useTwitchClient = () => {
         try {
           await clientRef.current.say(channel, message);
         } catch (error) {
-          setError(error instanceof Error ? error.message : 'Message send failed');
+          setError(
+            error instanceof Error ? error.message : "Message send failed"
+          );
         }
       }
     },
