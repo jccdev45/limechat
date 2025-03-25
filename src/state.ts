@@ -1,5 +1,6 @@
 import { atom } from 'jotai';
 import { atomWithStorage } from "jotai/utils"
+import type { ChatUserstate } from 'tmi.js';
 
 export interface Channel {
   name: string;
@@ -13,13 +14,15 @@ export interface Credentials {
 }
 
 export interface Message {
-  user: string;
   message: string;
   channel: string;
+  tags: ChatUserstate
+  self: boolean
 }
 
-export const channelsAtom = atomWithStorage<Channel[]>('channels', []);
 export const activeChannelAtom = atomWithStorage<string | null>('activeChannel', null);
-export const messagesAtom = atom<Message[]>([]);
-export const isConnectedAtom = atom(false);
+export const channelsAtom = atomWithStorage<Channel[]>('channels', []);
 export const credentialsAtom = atom<Credentials | null>(null);
+export const errorAtom = atom<string | null>(null);
+export const isConnectedAtom = atom(false);
+export const messagesAtom = atom<Message[]>([]);

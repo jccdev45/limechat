@@ -2,10 +2,7 @@ import { ChannelContent } from "@/components/channel-content";
 import { ChannelTabs } from "@/components/channel-tabs";
 import { MessageInput } from "@/components/message-input";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import {
-  activeChannelAtom,
-  channelsAtom
-} from "@/state";
+import { activeChannelAtom, channelsAtom } from "@/state";
 import { useAtom } from "jotai";
 import "./App.css";
 import { useTwitchClient } from "./hooks/use-twitch-client";
@@ -13,10 +10,11 @@ import { useTwitchClient } from "./hooks/use-twitch-client";
 export default function App() {
   const [channels, setChannels] = useAtom(channelsAtom);
   const [activeChannel, setActiveChannel] = useAtom(activeChannelAtom);
-  const client = useTwitchClient();
+  const { sendMessage } = useTwitchClient();
 
   const handleSendMessage = (message: string) => {
     if (activeChannel) {
+      sendMessage(activeChannel, message);
       setChannels((prev) =>
         prev.map((channel) =>
           channel.name === activeChannel
