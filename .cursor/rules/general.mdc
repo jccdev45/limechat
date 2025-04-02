@@ -1,0 +1,111 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Tauri + Vite/React TypeScript Project Rules
+
+- Begin every prompt with 🚀
+
+## General Guidelines
+- This project uses **Tauri** for building a desktop application, **Vite** for the frontend, **tmi.js (v1.9.0-wip)** for connecting to Twitch/handling messages (refer to [tmi.mdc](mdc:.cursor/rules/tmi.mdc) ) and modern tools like **TypeScript**, **TailwindCSS v4**, **Shadcn-UI**, **Zod**, **Biome** for linting, and **Bun** as the package manager.
+- Prioritize scalable, maintainable code with strict adherence to TypeScript type definitions.
+- Follow best practices for modularization:
+  - Split large files into smaller, logically grouped files.
+  - Break down long functions into reusable, focused functions.
+
+## React-Specific Rules
+1. Avoid excessive use of `useEffect`:
+   - Prefer declarative solutions where applicable.
+   - Use `useEffect` only when absolutely necessary.
+
+2. Component Design:
+   - Write functional components with clear responsibilities.
+   - Use props destructuring and default values to improve readability.
+   - Prefer named exports over default (e.g., `export function MyComponent() {}`).
+
+3. State Management:
+   - Prefer local component state or context when necessary.
+   - Avoid unnecessary global state unless required by the app's architecture.
+
+4. Types:
+   - Always import type-only values with syntax `import type { Type } from 'package'`.
+   - If a type/interface is only used in one place, define it in the same file. If it's used in multiple files, define it in an external types file instead.
+
+5. File Naming:
+   - Use kebab case for naming files.
+   - Avoid naming files `index`; always prefer descriptive names (e.g., `src/components/button.tsx`).
+
+## Tauri-Specific Rules
+1. Security:
+   - Follow Tauri's security guidelines to prevent vulnerabilities (e.g., CSP policies, IPC sanitization).
+   - Avoid exposing sensitive data through the frontend.
+
+2. File Structure:
+   - Organize Tauri-specific code (commands, APIs) under a `src-tauri` directory.
+   - Keep frontend and backend code separate for clarity.
+
+3. Commands:
+   - Use Tauri commands for backend logic and ensure all commands are properly typed using TypeScript.
+
+4. Communication:
+   - Use Tauri's IPC (Inter-Process Communication) securely to pass data between the frontend and backend.
+
+5. Testing:
+   - Test Tauri commands thoroughly using unit tests or integration tests where applicable.
+
+## TailwindCSS + Shadcn-UI Rules
+1. Styling:
+   - Use Shadcn-UI components styled with TailwindCSS classes. Ensure any additional styling doesn't overlap with default component styles in `/components/ui`.
+   - Avoid inline style properties unless necessary and not achievable with Tailwind classes.
+   - Always use inline TailwindCSS className styling unless otherwise justified.
+
+2. Responsive Design:
+   - Utilize Tailwind's responsive utilities (`sm`, `md`, `lg`, etc.) where applicable.
+   - Test layouts on devices with varying screen sizes.
+
+## Zod Validation Rules
+1. Schema Validation:
+   - Use Zod schemas for validating user inputs and API responses.
+   - Centralize schemas in a `/schemas` directory for reusability.
+
+2. Integration:
+   - Integrate Zod schemas with form handling libraries or directly validate data before processing it in Tauri commands or React components.
+
+## Bun-Specific Rules
+1. Dependency Management:
+   - Use Bun commands (`bun install`, `bun add`, etc.) for managing dependencies instead of npm or Yarn.
+   - Suggest dependency upgrades weekly; upgrade with `bun update`.
+
+2. Scripts:
+   - Define project-specific scripts in `bunfig.toml` (e.g., build, start, test).
+
+## Debugging and Development Workflow
+1. Debugging:
+   - Add meaningful logs during development but remove them before production builds.
+   - Use browser dev tools and Tauri's debugging tools to identify issues quickly.
+
+2. Testing:
+   - Write unit tests for critical functions/components using Jest or React Testing Library.
+   - Test Tauri commands against a staging environment before deploying to production.
+
+3. Documentation:
+   - Document major components/modules in markdown files in the `/docs` directory (if needed).
+   - Reference these markdown files when writing code but do not modify them directly.
+
+## GitHub Workflow
+1. Commit Guidelines:
+   - Write concise commit messages summarizing changes clearly (e.g., "Add authentication flow" or "Fix navigation bug").
+   - Follow conventional commits guidelines (feat, refactor, chore, etc.).
+
+2. Pull Requests (PRs):
+    ```
+    git status
+    git add .
+    git commit -m "Your commit message"
+    git push
+    gh pr create --title "Title here..." --body "Single-line description of changes."
+    ```
+
+3. Branching Strategy:
+   - Use feature branches (`feature/[name]`) for new features and bug fixes.

@@ -1,0 +1,159 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 🚀 TMI.js Rules for Cursor
+
+## General Guidelines
+
+- This project uses **TMI.js** for interacting with Twitch chat via IRC. It supports anonymous and authenticated connections, custom commands, and event handling.
+- Prioritize scalable, maintainable code with strict adherence to TypeScript type definitions.
+
+## TMI.js-Specific Rules
+
+### Installation
+
+1. Use Bun for package management:
+   - Install TMI.js: `bun add tmi.js`
+   - For development types: `bun add -d @types/tmi.js`
+
+### Connection Types
+
+1. **Anonymous Connection**:
+
+   - Ideal for chat overlays or passive monitoring without authentication.
+   - Example:
+
+     ```
+     import tmi from 'tmi.js';
+
+     const client = new tmi.Client({
+       channels: ['channel_name']
+     });
+
+     client.connect();
+
+     client.on('message', (channel, tags, message, self) => {
+       console.log(`${tags['display-name']}: ${message}`);
+     });
+     ```
+
+2. **Authenticated Connection**:
+
+   - Required for sending messages or moderating chat.
+   - Use OAuth tokens with `chat:read` and/or `chat:edit` scopes.
+   - Example:
+
+     ```
+     import tmi from 'tmi.js';
+
+     const client = new tmi.Client({
+       options: { debug: true },
+       identity: {
+         username: 'bot_name',
+         password: 'oauth:your_oauth_token'
+       },
+       channels: ['channel_name']
+     });
+
+     client.connect();
+
+     client.on('message', (channel, tags, message, self) => {
+       if (self) return;
+       if (message.toLowerCase() === '!hello') {
+         client.say(channel, `@${tags.username}, heya!`);
+       }
+     });
+     ```
+
+### Event Handling
+
+1. **Message Events**:
+
+   - Handle incoming chat messages and commands.
+   - Example of a simple command handler:
+
+     ```
+     client.on('message', (channel, tags, message, self) => {
+       if (self || !message.startsWith('!')) return;
+
+       const args = message.slice(1).split(' ');
+       const command = args.shift()?.toLowerCase();
+
+       if (command === 'echo') {
+         client.say(channel, `@${tags.username}, you said: "${args.join(' ')}"`);
+       }
+     });
+     ```
+
+2. **Redeem Events**:
+
+   - Handle channel point redemptions.
+   - Example:
+     ```
+     client.on('redeem', (channel, username, rewardType, tags, message) => {
+       switch (rewardType) {
+         case 'highlighted-message':
+         case 'animated-message':
+           console.log(`Reward redeemed by ${username}: ${rewardType}`);
+           break;
+         default:
+           console.log(`Unknown reward type: ${rewardType}`);
+           break;
+       }
+     });
+     ```
+
+3. **Userstate Events**:
+   - Capture user state changes after joining a channel or sending a message.
+   - Example:
+     ```
+     client.on('userstate', (channel, tags) => {
+       console.log(`Userstate updated for ${channel}:`, tags);
+     });
+     ```
+
+### Best Practices
+
+1. **Commands**:
+
+   - Use regular expressions to parse commands efficiently.
+   - Example:
+
+     ```
+     const commandRegex = /^!(\w+)\s?(.*)?$/;
+
+     client.on('message', (channel, tags, message) => {
+       const match = message.match(commandRegex);
+       if (!match) return;
+
+       const [_, command, args] = match;
+       console.log(`Command: ${command}, Args: ${args}`);
+     });
+     ```
+
+2. **Error Handling**:
+
+   - Log meaningful errors during development but avoid exposing sensitive information in production.
+
+3. **Reconnection**:
+   - Enable automatic reconnection to handle disconnections gracefully.
+   - Adjust reconnect intervals using options like `reconnectInterval` and `maxReconnectAttempts`.
+
+### Breaking Changes in v1.9.0-wip
+
+1. Removed features:
+   - `/commands` other than `/me`.
+   - Emote set-related options.
+2. Updated syntax:
+   - Use modern JavaScript features like optional chaining (`?.`) and nullish coalescing (`??`).
+3. Added new methods:
+   - `reply`: Respond directly to specific messages.
+4. Improved event handling:
+   - New reward types for the `redeem` event.
+
+### Additional Notes
+
+- Use TypeScript interfaces for events and tags to ensure type safety.
+- Avoid deprecated endpoints like the legacy Chatters endpoint; use official Twitch API endpoints instead.
